@@ -13,7 +13,8 @@ const DEFAULT_USER: UserState = {
   theme: 'light',
   isOnboarded: false,
   notificationsEnabled: false,
-  notificationTime: '08:00'
+  notificationTime: '08:00',
+  customApiKey: ''
 };
 
 const App: React.FC = () => {
@@ -332,6 +333,31 @@ const App: React.FC = () => {
                      </button>
                    </div>
                    
+                   {/* API Key Section */}
+                   <div className="border-t border-slate-100 dark:border-slate-700 pt-6">
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Chave de API (Opcional)</label>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                          Se o app não estiver carregando o conteúdo, insira sua chave do Google Gemini aqui.
+                        </p>
+                        <input 
+                          type="password"
+                          value={user.customApiKey || ''}
+                          onChange={(e) => updateUser({ customApiKey: e.target.value })}
+                          placeholder="Cole sua chave AIza..."
+                          className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
+                        />
+                         <a 
+                            href="https://aistudio.google.com/app/apikey" 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="block mt-1 text-xs text-royal-600 dark:text-gold-400 underline"
+                          >
+                            Obter chave gratuita
+                          </a>
+                      </div>
+                   </div>
+
                    <div className="border-t border-slate-100 dark:border-slate-700 pt-6">
                       <div className="flex justify-between items-center mb-4">
                         <div className="flex items-center gap-2">

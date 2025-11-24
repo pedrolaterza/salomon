@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { DailyContent, UserState } from '../types';
 import { fetchDailyWisdom } from '../services/geminiService';
-import { ChevronLeft, ChevronRight, CheckCircle, Heart, BookOpen, Lightbulb, Share } from './Icons';
+import { ChevronLeft, ChevronRight, CheckCircle, Heart, BookOpen, Lightbulb, Share, Settings } from './Icons';
 // @ts-ignore
 import confetti from 'canvas-confetti';
 // @ts-ignore
@@ -41,6 +41,7 @@ const DailyView: React.FC<DailyViewProps> = ({ user, onUpdateUser }) => {
   const [journalText, setJournalText] = useState('');
   const [showNextSuggestion, setShowNextSuggestion] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [tempApiKey, setTempApiKey] = useState('');
 
   // Cycle loading messages
   useEffect(() => {
@@ -59,7 +60,7 @@ const DailyView: React.FC<DailyViewProps> = ({ user, onUpdateUser }) => {
     setShowNextSuggestion(false);
     
     // Updated cache key version for new fields (Curiosity + Bold formatting)
-    const cacheKey = `wisdom_day_${day}_v2_complete`;
+    const cacheKey = `wisdom_day_${day}_v3_ai`;
     const cached = localStorage.getItem(cacheKey);
 
     if (cached) {
@@ -75,12 +76,12 @@ const DailyView: React.FC<DailyViewProps> = ({ user, onUpdateUser }) => {
     try {
       // Increased timeout to 45 seconds to allow full chapter generation
       const timeoutPromise = new Promise<null>((_, reject) => 
-        setTimeout(() => reject(new Error("O tempo de espera esgotou. A sabedoria requer paciência, mas sua conexão pode estar lenta.")), 45000)
+        setTimeout(() => reject(new Error("TIMEOUT")), 45000)
       );
 
-      // Race between fetch and timeout
+      // Pass user's custom key if available
       const result = await Promise.race([
-        fetchDailyWisdom(day),
+        fetchDailyWisdom(day, user.customApiKey),
         timeoutPromise
       ]);
 
@@ -93,19 +94,24 @@ const DailyView: React.FC<DailyViewProps> = ({ user, onUpdateUser }) => {
           setContent(result);
         }
       } else {
-        throw new Error("Resposta inválida do servidor.");
+        throw new Error("Resposta vazia da IA.");
       }
     } catch (err: any) {
       console.error("Load content error:", err);
-      setError("Não foi possível carregar o capítulo no momento. Verifique sua conexão e tente novamente.");
+      if (err.message === "MISSING_API_KEY") {
+        setError("API_KEY_REQUIRED");
+      } else if (err.message === "TIMEOUT") {
+        setError("O tempo de espera esgotou. A sabedoria requer paciência, mas sua conexão pode estar lenta.");
+      } else {
+        setError("Não foi possível carregar o capítulo. Verifique sua chave de API e conexão.");
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user.customApiKey]);
 
   useEffect(() => {
     loadContent(user.currentDay);
-    // Initialize journal text from saved state
     setJournalText(user.journalEntries[user.currentDay] || '');
   }, [user.currentDay, loadContent, user.journalEntries]);
 
@@ -133,16 +139,14 @@ const DailyView: React.FC<DailyViewProps> = ({ user, onUpdateUser }) => {
     } else {
       newCompleted.push(user.currentDay);
       
-      // Trigger confetti effect
       confetti({
         particleCount: 150,
         spread: 70,
         origin: { y: 0.8 },
-        colors: ['#fbbf24', '#1e3a8a', '#ffffff'], // Gold, Royal Blue, White
+        colors: ['#fbbf24', '#1e3a8a', '#ffffff'],
         disableForReducedMotion: true
       });
 
-      // If completing for the first time today, show suggestion
       if (user.currentDay < 31) {
         setShowNextSuggestion(true);
       }
@@ -176,20 +180,18 @@ const DailyView: React.FC<DailyViewProps> = ({ user, onUpdateUser }) => {
     const element = document.getElementById('share-card');
     if (!element) return;
     
-    // Slight delay to ensure element is rendered if needed
     await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
       const canvas = await html2canvas(element, {
-        scale: 2, // Higher quality
-        backgroundColor: '#172554', // Match royal-900
+        scale: 2, 
+        backgroundColor: '#172554', 
         useCORS: true
       });
 
       canvas.toBlob((blob: Blob | null) => {
         if (!blob) return;
         
-        // Try native share first (mobile)
         if (navigator.share) {
           const file = new File([blob], 'sabedoria-do-dia.png', { type: 'image/png' });
           navigator.share({
@@ -198,7 +200,6 @@ const DailyView: React.FC<DailyViewProps> = ({ user, onUpdateUser }) => {
             files: [file],
           }).catch(console.error);
         } else {
-          // Fallback to download
           const link = document.createElement('a');
           link.download = `sabedoria-dia-${user.currentDay}.png`;
           link.href = canvas.toDataURL('image/png');
@@ -217,7 +218,52 @@ const DailyView: React.FC<DailyViewProps> = ({ user, onUpdateUser }) => {
       <div className="flex flex-col items-center justify-center min-h-[60vh] animate-pulse px-6 text-center">
         <div className="w-16 h-16 border-4 border-gold-400 border-t-transparent rounded-full animate-spin mb-6"></div>
         <p className="text-royal-900 dark:text-gold-400 font-serif text-lg font-medium">{LOADING_MESSAGES[loadingMsgIndex]}</p>
-        <p className="text-xs text-slate-400 mt-4">Isso pode levar alguns segundos, estamos buscando o texto completo.</p>
+        <p className="text-xs text-slate-400 mt-4">Isso pode levar alguns segundos...</p>
+      </div>
+    );
+  }
+
+  // SPECIAL ERROR SCREEN FOR MISSING API KEY
+  if (error === "API_KEY_REQUIRED") {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] p-4 text-center">
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-xl border-2 border-gold-400 max-w-md w-full">
+          <Settings size={48} className="mx-auto text-gold-500 mb-4" />
+          <h3 className="text-xl font-serif font-bold text-royal-900 dark:text-white mb-2">Configuração Necessária</h3>
+          <p className="text-slate-600 dark:text-slate-300 mb-6 text-sm">
+            Para gerar a sabedoria de hoje, o aplicativo precisa de uma Chave de API do Google (gratuita).
+          </p>
+          
+          <input 
+            type="password"
+            placeholder="Cole sua chave API aqui (AIza...)"
+            className="w-full p-3 mb-4 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
+            value={tempApiKey}
+            onChange={(e) => setTempApiKey(e.target.value)}
+          />
+
+          <div className="space-y-3">
+            <button 
+              onClick={() => {
+                onUpdateUser({ customApiKey: tempApiKey });
+                // Attempt to reload immediately after state update (might need effect, but usually re-render triggers)
+                setTimeout(() => loadContent(user.currentDay), 100);
+              }}
+              disabled={!tempApiKey}
+              className="w-full py-3 bg-gold-500 hover:bg-gold-600 text-white rounded-lg font-bold shadow-lg disabled:opacity-50"
+            >
+              Salvar e Carregar
+            </button>
+            <a 
+              href="https://aistudio.google.com/app/apikey" 
+              target="_blank" 
+              rel="noreferrer"
+              className="block text-xs text-royal-600 dark:text-gold-400 underline"
+            >
+              Clique aqui para obter sua chave grátis no Google
+            </a>
+          </div>
+        </div>
       </div>
     );
   }
@@ -244,7 +290,7 @@ const DailyView: React.FC<DailyViewProps> = ({ user, onUpdateUser }) => {
   return (
     <div className="max-w-3xl mx-auto px-4 pb-24 pt-4 fade-in">
       
-      {/* HIDDEN SHARE CARD (Visible only to html2canvas) */}
+      {/* HIDDEN SHARE CARD */}
       <div 
         id="share-card" 
         className="fixed -left-[9999px] top-0 w-[600px] h-[600px] bg-gradient-to-br from-royal-900 to-royal-800 text-white p-12 flex flex-col justify-between"
@@ -260,7 +306,6 @@ const DailyView: React.FC<DailyViewProps> = ({ user, onUpdateUser }) => {
            
            <div className="bg-white/10 p-8 rounded-xl backdrop-blur-sm border border-white/10">
               <p className="text-xl leading-relaxed font-serif text-slate-100 italic">
-                {/* Clean markdown from text for the image */}
                 "{content.interpretation.replace(/\*\*/g, '')}"
               </p>
            </div>
@@ -379,7 +424,7 @@ const DailyView: React.FC<DailyViewProps> = ({ user, onUpdateUser }) => {
             </ul>
           </div>
 
-          {/* Historical Curiosity (NEW) */}
+          {/* Historical Curiosity */}
           {content.historicalCuriosity && (
             <div className="mb-8">
                <h3 className="text-lg font-bold font-serif text-royal-900 dark:text-slate-100 mb-3 flex items-center gap-2">

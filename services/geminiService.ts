@@ -1,17 +1,6 @@
+
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { DailyContent } from "../types";
-
-// Lazy initialization to prevent top-level crashes if API_KEY is missing during build/init
-let aiInstance: GoogleGenAI | null = null;
-
-const getAI = () => {
-  if (!aiInstance) {
-    // Ensure we have a string, even if empty, to prevent constructor error
-    const apiKey = process.env.API_KEY || '';
-    aiInstance = new GoogleGenAI({ apiKey });
-  }
-  return aiInstance;
-};
 
 const contentSchema: Schema = {
   type: Type.OBJECT,
@@ -41,15 +30,18 @@ const contentSchema: Schema = {
   required: ["scriptureReference", "scriptureVerses", "interpretation", "practicalSteps", "reflectionQuestion", "historicalCuriosity"]
 };
 
-export const fetchDailyWisdom = async (day: number): Promise<DailyContent | null> => {
+export const fetchDailyWisdom = async (day: number, customKey?: string): Promise<DailyContent | null> => {
   try {
-    // Check if API key is actually present before making a call to give better error message
-    if (!process.env.API_KEY) {
-      console.warn("API Key is missing. Check your environment variables.");
-      // We don't throw here to allow the UI to handle the null return gracefully or show a specific message
+    // Determine which key to use: Custom Key (User Input) > Environment Variable
+    const apiKey = customKey || process.env.API_KEY;
+
+    if (!apiKey) {
+      console.warn("API Key is missing.");
+      throw new Error("MISSING_API_KEY");
     }
 
-    const ai = getAI();
+    // Initialize AI with the specific key for this request
+    const ai = new GoogleGenAI({ apiKey });
     
     const prompt = `
       Hoje é o Dia ${day} de uma jornada de sabedoria.
@@ -87,8 +79,11 @@ export const fetchDailyWisdom = async (day: number): Promise<DailyContent | null
       ...data
     } as DailyContent;
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching wisdom from Gemini:", error);
+    if (error.message === "MISSING_API_KEY" || error.toString().includes("API key")) {
+        throw new Error("MISSING_API_KEY");
+    }
     return null;
   }
 };

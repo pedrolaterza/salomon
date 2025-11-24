@@ -24,6 +24,7 @@ export interface UserState {
   isOnboarded: boolean;
   notificationsEnabled: boolean;
   notificationTime: string; // "HH:MM" format
+  customApiKey?: string; // Optional custom API key provided by user
 }
 
 export type ViewState = 'home' | 'journal' | 'favorites' | 'settings';
