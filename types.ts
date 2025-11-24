@@ -22,8 +22,6 @@ export interface UserState {
   favorites: number[];
   theme: 'light' | 'dark';
   isOnboarded: boolean;
-  notificationsEnabled: boolean;
-  notificationTime: string; // "HH:MM" format
 }
 
 export type ViewState = 'home' | 'journal' | 'favorites' | 'settings';

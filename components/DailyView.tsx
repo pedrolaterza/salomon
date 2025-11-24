@@ -2,11 +2,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { DailyContent, UserState } from '../types';
 import { fetchDailyWisdom } from '../services/geminiService';
-import { ChevronLeft, ChevronRight, CheckCircle, Heart, BookOpen, Lightbulb, Share, Settings } from './Icons';
+import { ChevronLeft, ChevronRight, CheckCircle, Heart, BookOpen, Lightbulb } from './Icons';
 // @ts-ignore
 import confetti from 'canvas-confetti';
-// @ts-ignore
-import html2canvas from 'html2canvas';
 
 interface DailyViewProps {
   user: UserState;
@@ -40,7 +38,6 @@ const DailyView: React.FC<DailyViewProps> = ({ user, onUpdateUser }) => {
   const [error, setError] = useState<string | null>(null);
   const [journalText, setJournalText] = useState('');
   const [showNextSuggestion, setShowNextSuggestion] = useState(false);
-  const [isSharing, setIsSharing] = useState(false);
 
   // Cycle loading messages
   useEffect(() => {
@@ -172,44 +169,6 @@ const DailyView: React.FC<DailyViewProps> = ({ user, onUpdateUser }) => {
     });
   };
 
-  const handleShare = async () => {
-    setIsSharing(true);
-    const element = document.getElementById('share-card');
-    if (!element) return;
-    
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    try {
-      const canvas = await html2canvas(element, {
-        scale: 2, 
-        backgroundColor: '#172554', 
-        useCORS: true
-      });
-
-      canvas.toBlob((blob: Blob | null) => {
-        if (!blob) return;
-        
-        if (navigator.share) {
-          const file = new File([blob], 'sabedoria-do-dia.png', { type: 'image/png' });
-          navigator.share({
-            title: 'Sabedoria de Salomão',
-            text: `Provérbios ${user.currentDay} - Uma jornada de sabedoria.`,
-            files: [file],
-          }).catch(console.error);
-        } else {
-          const link = document.createElement('a');
-          link.download = `sabedoria-dia-${user.currentDay}.png`;
-          link.href = canvas.toDataURL('image/png');
-          link.click();
-        }
-      });
-    } catch (err) {
-      console.error("Erro ao compartilhar", err);
-    } finally {
-      setIsSharing(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] animate-pulse px-6 text-center">
@@ -242,33 +201,6 @@ const DailyView: React.FC<DailyViewProps> = ({ user, onUpdateUser }) => {
   return (
     <div className="max-w-3xl mx-auto px-4 pb-24 pt-4 fade-in">
       
-      {/* HIDDEN SHARE CARD */}
-      <div 
-        id="share-card" 
-        className="fixed -left-[9999px] top-0 w-[600px] h-[600px] bg-gradient-to-br from-royal-900 to-royal-800 text-white p-12 flex flex-col justify-between"
-      >
-        <div className="text-center">
-           <div className="flex justify-center mb-6">
-             <div className="bg-gold-500/20 p-4 rounded-full">
-               <BookOpen size={48} className="text-gold-400" />
-             </div>
-           </div>
-           <h2 className="text-4xl font-serif font-bold text-white mb-2">{content.scriptureReference}</h2>
-           <div className="w-24 h-1 bg-gold-500 mx-auto mb-8"></div>
-           
-           <div className="bg-white/10 p-8 rounded-xl backdrop-blur-sm border border-white/10">
-              <p className="text-xl leading-relaxed font-serif text-slate-100 italic">
-                "{content.interpretation.replace(/\*\*/g, '')}"
-              </p>
-           </div>
-        </div>
-
-        <div className="text-center mt-8">
-           <p className="text-gold-400 uppercase tracking-[0.2em] text-sm font-medium">Sabedoria de Salomão</p>
-           <p className="text-xs text-slate-400 mt-1">por Marinalva Callegario</p>
-        </div>
-      </div>
-
       {/* Header Controls */}
       <div className="flex items-center justify-between mb-6">
         <button 
@@ -314,9 +246,6 @@ const DailyView: React.FC<DailyViewProps> = ({ user, onUpdateUser }) => {
                </div>
             </div>
             <div className="flex gap-2">
-               <button onClick={handleShare} className="transition-transform active:scale-95 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-royal-800 dark:text-gold-400" title="Compartilhar">
-                 <Share size={24} />
-               </button>
                <button onClick={toggleFavorite} className="transition-transform active:scale-95 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700">
                  <Heart 
                   className={isFavorite ? "text-red-500" : "text-slate-300 hover:text-red-400"} 

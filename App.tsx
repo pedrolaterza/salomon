@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserState, ViewState } from './types';
 import DailyView from './components/DailyView';
-import { BookOpen, Feather, Info, Settings, Moon, Sun, Heart, Star, ChevronRight, CheckCircle, Bell } from './components/Icons';
+import { BookOpen, Feather, Settings, Moon, Sun, Heart, Star, ChevronRight, CheckCircle } from './components/Icons';
 
 const DEFAULT_USER: UserState = {
   name: '',
@@ -11,9 +11,7 @@ const DEFAULT_USER: UserState = {
   journalEntries: {},
   favorites: [],
   theme: 'light',
-  isOnboarded: false,
-  notificationsEnabled: false,
-  notificationTime: '08:00'
+  isOnboarded: false
 };
 
 const App: React.FC = () => {
@@ -21,7 +19,6 @@ const App: React.FC = () => {
   const [view, setView] = useState<ViewState>('home');
   const [loading, setLoading] = useState(true);
   const [onboardingStep, setOnboardingStep] = useState(0); // 0: Name, 1: Instructions
-  const lastNotificationDateRef = useRef<string>('');
 
   // Load User Data
   useEffect(() => {
@@ -47,50 +44,8 @@ const App: React.FC = () => {
     }
   }, [user, loading]);
 
-  // Check for notifications
-  useEffect(() => {
-    if (!user.notificationsEnabled || !user.notificationTime) return;
-
-    const checkTime = () => {
-      const now = new Date();
-      const [hours, minutes] = user.notificationTime.split(':').map(Number);
-      const todayString = now.toDateString();
-
-      // If we haven't notified today
-      if (lastNotificationDateRef.current !== todayString) {
-        if (now.getHours() === hours && now.getMinutes() === minutes) {
-          if (Notification.permission === 'granted') {
-             new Notification('✨ Sabedoria de Salomão', {
-               body: `Sua dose diária de sabedoria te espera, ${user.name}!`,
-               icon: '/favicon.ico'
-             });
-             lastNotificationDateRef.current = todayString;
-          }
-        }
-      }
-    };
-
-    const interval = setInterval(checkTime, 60000); // Check every minute
-    return () => clearInterval(interval);
-  }, [user.notificationsEnabled, user.notificationTime, user.currentDay, user.name]);
-
   const updateUser = (updates: Partial<UserState>) => {
     setUser(prev => ({ ...prev, ...updates }));
-  };
-
-  const requestNotificationPermission = async () => {
-    if (!('Notification' in window)) {
-      alert("Seu navegador não suporta notificações.");
-      return;
-    }
-    
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-      updateUser({ notificationsEnabled: true });
-    } else {
-      updateUser({ notificationsEnabled: false });
-      alert("Permissão para notificações foi negada.");
-    }
   };
 
   // Onboarding Screen
@@ -178,7 +133,7 @@ const App: React.FC = () => {
       <header className="px-6 py-5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-20 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center no-print">
         <div>
           <h1 className="text-xl font-serif font-bold text-royal-900 dark:text-gold-400">
-            {view === 'home' && `Bom dia, ${user.name}`}
+            {view === 'home' && `Olá, ${user.name}`}
             {view === 'journal' && 'Minha Jornada'}
             {view === 'settings' && 'Configurações'}
             {view === 'favorites' && 'Favoritos'}
@@ -325,47 +280,24 @@ const App: React.FC = () => {
                   <h3 className="font-bold text-lg mb-1 dark:text-white">Preferências</h3>
                 </div>
                 <div className="p-6 space-y-6">
-                   <div className="flex justify-between items-center">
+                   
+                   {/* Name Edit Field */}
+                   <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Seu Nome</label>
+                      <input 
+                        type="text" 
+                        value={user.name}
+                        onChange={(e) => updateUser({ name: e.target.value })}
+                        className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-gold-400 outline-none transition"
+                        placeholder="Como prefere ser chamado?"
+                      />
+                   </div>
+
+                   <div className="flex justify-between items-center pt-2">
                      <span className="text-slate-700 dark:text-slate-300">Modo Escuro</span>
                      <button onClick={() => updateUser({ theme: user.theme === 'light' ? 'dark' : 'light' })} className="text-royal-800 dark:text-gold-400">
                         {user.theme === 'light' ? <Moon /> : <Sun />}
                      </button>
-                   </div>
-                   
-                   <div className="border-t border-slate-100 dark:border-slate-700 pt-6">
-                      <div className="flex justify-between items-center mb-4">
-                        <div className="flex items-center gap-2">
-                           <Bell size={20} className="text-slate-500" />
-                           <span className="text-slate-700 dark:text-slate-300">Notificações Diárias</span>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            className="sr-only peer"
-                            checked={user.notificationsEnabled}
-                            onChange={(e) => {
-                              if(e.target.checked) {
-                                requestNotificationPermission();
-                              } else {
-                                updateUser({ notificationsEnabled: false });
-                              }
-                            }}
-                          />
-                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gold-300 dark:peer-focus:ring-gold-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gold-500"></div>
-                        </label>
-                      </div>
-                      
-                      {user.notificationsEnabled && (
-                        <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
-                           <span className="text-sm text-slate-500 dark:text-slate-400">Horário do lembrete:</span>
-                           <input 
-                              type="time" 
-                              value={user.notificationTime}
-                              onChange={(e) => updateUser({ notificationTime: e.target.value })}
-                              className="bg-transparent text-royal-900 dark:text-white font-bold outline-none cursor-pointer"
-                           />
-                        </div>
-                      )}
                    </div>
                 </div>
              </div>
