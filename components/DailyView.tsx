@@ -41,7 +41,6 @@ const DailyView: React.FC<DailyViewProps> = ({ user, onUpdateUser }) => {
   const [journalText, setJournalText] = useState('');
   const [showNextSuggestion, setShowNextSuggestion] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
-  const [tempApiKey, setTempApiKey] = useState('');
 
   // Cycle loading messages
   useEffect(() => {
@@ -81,7 +80,7 @@ const DailyView: React.FC<DailyViewProps> = ({ user, onUpdateUser }) => {
 
       // Pass user's custom key if available
       const result = await Promise.race([
-        fetchDailyWisdom(day, user.customApiKey),
+        fetchDailyWisdom(day),
         timeoutPromise
       ]);
 
@@ -98,17 +97,15 @@ const DailyView: React.FC<DailyViewProps> = ({ user, onUpdateUser }) => {
       }
     } catch (err: any) {
       console.error("Load content error:", err);
-      if (err.message === "MISSING_API_KEY") {
-        setError("API_KEY_REQUIRED");
-      } else if (err.message === "TIMEOUT") {
+      if (err.message === "TIMEOUT") {
         setError("O tempo de espera esgotou. A sabedoria requer paciência, mas sua conexão pode estar lenta.");
       } else {
-        setError("Não foi possível carregar o capítulo. Verifique sua chave de API e conexão.");
+        setError("Não foi possível carregar o capítulo. Verifique sua conexão e tente novamente.");
       }
     } finally {
       setLoading(false);
     }
-  }, [user.customApiKey]);
+  }, []);
 
   useEffect(() => {
     loadContent(user.currentDay);
@@ -219,51 +216,6 @@ const DailyView: React.FC<DailyViewProps> = ({ user, onUpdateUser }) => {
         <div className="w-16 h-16 border-4 border-gold-400 border-t-transparent rounded-full animate-spin mb-6"></div>
         <p className="text-royal-900 dark:text-gold-400 font-serif text-lg font-medium">{LOADING_MESSAGES[loadingMsgIndex]}</p>
         <p className="text-xs text-slate-400 mt-4">Isso pode levar alguns segundos...</p>
-      </div>
-    );
-  }
-
-  // SPECIAL ERROR SCREEN FOR MISSING API KEY
-  if (error === "API_KEY_REQUIRED") {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] p-4 text-center">
-        <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-xl border-2 border-gold-400 max-w-md w-full">
-          <Settings size={48} className="mx-auto text-gold-500 mb-4" />
-          <h3 className="text-xl font-serif font-bold text-royal-900 dark:text-white mb-2">Configuração Necessária</h3>
-          <p className="text-slate-600 dark:text-slate-300 mb-6 text-sm">
-            Para gerar a sabedoria de hoje, o aplicativo precisa de uma Chave de API do Google (gratuita).
-          </p>
-          
-          <input 
-            type="password"
-            placeholder="Cole sua chave API aqui (AIza...)"
-            className="w-full p-3 mb-4 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
-            value={tempApiKey}
-            onChange={(e) => setTempApiKey(e.target.value)}
-          />
-
-          <div className="space-y-3">
-            <button 
-              onClick={() => {
-                onUpdateUser({ customApiKey: tempApiKey });
-                // Attempt to reload immediately after state update (might need effect, but usually re-render triggers)
-                setTimeout(() => loadContent(user.currentDay), 100);
-              }}
-              disabled={!tempApiKey}
-              className="w-full py-3 bg-gold-500 hover:bg-gold-600 text-white rounded-lg font-bold shadow-lg disabled:opacity-50"
-            >
-              Salvar e Carregar
-            </button>
-            <a 
-              href="https://aistudio.google.com/app/apikey" 
-              target="_blank" 
-              rel="noreferrer"
-              className="block text-xs text-royal-600 dark:text-gold-400 underline"
-            >
-              Clique aqui para obter sua chave grátis no Google
-            </a>
-          </div>
-        </div>
       </div>
     );
   }

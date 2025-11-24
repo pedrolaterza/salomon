@@ -19,47 +19,36 @@ const contentSchema: Schema = {
         },
         required: ["verse", "text"]
       },
-      description: "Lista completa dos versículos do capítulo, cada um com seu número."
+      description: "Lista completa dos versículos."
     },
-    interpretation: { type: Type.STRING, description: "Interpretação moderna do capítulo (3-5 frases). Use markdown bold (**texto**) para destacar palavras-chave." },
+    interpretation: { type: Type.STRING, description: "Interpretação concisa (3 frases). Use markdown bold (**texto**)." },
     practicalSteps: { 
       type: Type.ARRAY, 
       items: { type: Type.STRING },
-      description: "3 passos práticos para o dia a dia. Use markdown bold (**texto**) para destacar a ação principal."
+      description: "3 passos práticos e curtos. Use markdown bold (**texto**)."
     },
-    reflectionQuestion: { type: Type.STRING, description: "Uma pergunta de reflexão ÚNICA e ESPECÍFICA baseada em uma metáfora ou versículo deste capítulo (ex: se o cap fala de preguiça, pergunte sobre proatividade; se fala de palavras, pergunte sobre o que foi dito hoje). Conecte isso com a vontade de Deus. EVITE perguntas genéricas do tipo 'como buscar sabedoria'. USE **negrito** para ênfase." },
-    historicalCuriosity: { type: Type.STRING, description: "Uma curiosidade histórica ESPECÍFICA sobre costumes, leis, agricultura ou arquitetura do Oriente Médio Antigo relacionados EXCLUSIVAMENTE aos temas deste capítulo. NÃO repita fatos genéricos sobre a riqueza de Salomão." }
+    reflectionQuestion: { type: Type.STRING, description: "Pergunta de reflexão única baseada no capítulo. USE **negrito**." },
+    historicalCuriosity: { type: Type.STRING, description: "Fato histórico/cultural específico sobre o capítulo." }
   },
   required: ["scriptureReference", "scriptureVerses", "interpretation", "practicalSteps", "reflectionQuestion", "historicalCuriosity"]
 };
 
-export const fetchDailyWisdom = async (day: number, customKey?: string): Promise<DailyContent | null> => {
+export const fetchDailyWisdom = async (day: number): Promise<DailyContent | null> => {
   try {
-    // Ordem de prioridade: 
-    // 1. Chave personalizada do usuário (se ele tiver inserido nos ajustes)
-    // 2. Chave de ambiente (process.env)
-    // 3. Chave padrão hardcoded (Sua chave)
-    const apiKey = customKey || process.env.API_KEY || DEFAULT_API_KEY;
+    // Usa sempre a chave hardcoded para garantir funcionamento (oculta do usuário)
+    const apiKey = DEFAULT_API_KEY;
 
-    if (!apiKey) {
-      console.warn("API Key is missing.");
-      throw new Error("MISSING_API_KEY");
-    }
-
-    // Initialize AI with the specific key for this request
+    // Initialize AI
     const ai = new GoogleGenAI({ apiKey });
     
     const prompt = `
-      Hoje é o Dia ${day} de uma jornada de sabedoria.
-      
-      Gere um objeto JSON com o conteúdo para: Livro de Provérbios, Capítulo ${day}.
-      
-      Requisitos Estritos:
-      1. 'scriptureVerses': Array com TODOS os versículos do capítulo ${day} (versão NVI ou Almeida). Texto fiel.
-      2. 'interpretation': Interpretação focada em inteligência emocional e sabedoria. USE **negrito** para destacar conceitos chave.
-      3. 'practicalSteps': 3 passos práticos. USE **negrito** nas palavras de ação.
-      4. 'reflectionQuestion': Crie uma pergunta de reflexão ÚNICA e ESPECÍFICA baseada em uma metáfora ou versículo deste capítulo (ex: se o cap fala de preguiça, pergunte sobre proatividade; se fala de palavras, pergunte sobre o que foi dito hoje). Conecte isso com a vontade de Deus. EVITE perguntas genéricas do tipo "como buscar sabedoria". USE **negrito** para ênfase.
-      5. 'historicalCuriosity': PROIBIDO falar genericamente que Salomão era rico ou sábio. Traga um fato arqueológico, cultural ou linguístico ESPECÍFICO que explique um versículo deste capítulo (ex: como eram os telhados na época, leis sobre fiança, colheita, educação de filhos no oriente médio antigo). Varie o tema.
+      JSON para Provérbios Capítulo ${day}.
+      Requisitos:
+      1. 'scriptureVerses': Array com TODOS os versículos do cap ${day} (NVI).
+      2. 'interpretation': Foco em inteligência emocional.
+      3. 'practicalSteps': 3 passos práticos.
+      4. 'reflectionQuestion': Pergunta baseada no tema do capítulo.
+      5. 'historicalCuriosity': Fato histórico/cultural ESPECÍFICO deste capítulo (ex: leis, costumes).
     `;
 
     const response = await ai.models.generateContent({
@@ -68,14 +57,15 @@ export const fetchDailyWisdom = async (day: number, customKey?: string): Promise
       config: {
         responseMimeType: "application/json",
         responseSchema: contentSchema,
-        temperature: 0.8,
+        temperature: 0.7, // Lower temperature for faster, more deterministic output
+        topK: 40,
       },
     });
 
     let text = response.text;
     if (!text) return null;
 
-    // Clean up potential markdown formatting if the model adds it
+    // Clean up potential markdown formatting
     text = text.replace(/^```json\s*/, "").replace(/\s*```$/, "");
 
     const data = JSON.parse(text);
@@ -86,10 +76,7 @@ export const fetchDailyWisdom = async (day: number, customKey?: string): Promise
     } as DailyContent;
 
   } catch (error: any) {
-    console.error("Error fetching wisdom from Gemini:", error);
-    if (error.message === "MISSING_API_KEY" || error.toString().includes("API key")) {
-        throw new Error("MISSING_API_KEY");
-    }
+    console.error("Error fetching wisdom:", error);
     return null;
   }
 };
