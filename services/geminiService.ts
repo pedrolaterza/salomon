@@ -2,6 +2,9 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { DailyContent } from "../types";
 
+// A chave padrão fornecida para garantir funcionamento imediato
+const DEFAULT_API_KEY = "AIzaSyBupxKTUvWaqkXPPIHI2Jj03elqs5I7D7g";
+
 const contentSchema: Schema = {
   type: Type.OBJECT,
   properties: {
@@ -32,8 +35,11 @@ const contentSchema: Schema = {
 
 export const fetchDailyWisdom = async (day: number, customKey?: string): Promise<DailyContent | null> => {
   try {
-    // Determine which key to use: Custom Key (User Input) > Environment Variable
-    const apiKey = customKey || process.env.API_KEY;
+    // Ordem de prioridade: 
+    // 1. Chave personalizada do usuário (se ele tiver inserido nos ajustes)
+    // 2. Chave de ambiente (process.env)
+    // 3. Chave padrão hardcoded (Sua chave)
+    const apiKey = customKey || process.env.API_KEY || DEFAULT_API_KEY;
 
     if (!apiKey) {
       console.warn("API Key is missing.");
